@@ -1,0 +1,39 @@
+#order_review {
+    display:flex;
+    flex-direction: row;
+    width: 100% !important;
+    gap: 20px;
+    /* float: left !important; */
+    float: unset !important;
+    /* justify-content: center; */
+    margin: 0 auto;
+}
+
+#order_review table {
+    height:20%;
+}
+
+#order_review #payment {
+    display: flex;
+    flex-direction: column;
+    order: 2;
+}
+
+#order_review #payment .form-row {
+    order: 1;
+}
+
+#order_review #payment .wc_payment_methods {
+    order: 2;
+}
+
+/* on small screens let the flex direction be column */
+@media screen and (max-width: 600px) {
+    #order_review {
+        flex-direction: column;
+        width: unset !important;
+        gap: 0;
+    }
+
+
+}

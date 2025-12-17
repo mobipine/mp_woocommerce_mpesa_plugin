@@ -1,0 +1,49 @@
+<style>
+    .spinner {
+        width: 220px;
+        height: 220px;
+        border: 10px solid #E8E8E8;
+        border-bottom-color: #77BC22;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: rotation 1s linear infinite;
+    }
+    
+    @keyframes rotation {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .hidden {
+        display: none;
+    }
+    </style>
+    
+
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+        <div id="spinner" class="spinner hidden"></div>
+        <div id="success-message" class="hidden" style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+            <!-- <p style="color: green;">Thank you!! Your payment has been received.</p> -->
+            <!-- <a id="view-order-link" href="#" class="hidden">View Order</a> -->
+            <svg class="" id="success_check" xmlns="http://www.w3.org/2000/svg" width="220" height="220"
+            fill="#77BC22" class="bi bi-check-circle" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+            <path
+                d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05" />
+        </svg>
+
+        <p style="color: green; margin-top: 20px; margin-bottom: 20px; font-size: 24px; font-weight: bold; text-align: center;">Thank you!! Your payment has been received.</p>
+
+        </div>
+        <div id="failed-message" class="hidden"  style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+            <p 
+            style="color: red;"
+            >Payment failed. Please try again.</p>
+            <!-- <button style="margin-bottom: 30px;" id="retry-button">Reinitiate MPESA Payment</button> -->
+        </div>
+    </div>

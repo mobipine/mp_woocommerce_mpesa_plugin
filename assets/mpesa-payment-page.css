@@ -1,0 +1,448 @@
+/* M-Pesa Payment Page Styling */
+
+/* Checkout Page M-Pesa Description Styling */
+.mpesa-checkout-description {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Style the place order button when M-Pesa is selected */
+#place_order.mpesa-active {
+    background: #00a859 !important;
+    border-color: #00a859 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 14px 30px !important;
+    font-size: 16px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(0, 168, 89, 0.2) !important;
+}
+
+#place_order.mpesa-active:hover {
+    background: #008a47 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.3) !important;
+}
+
+/* M-Pesa label logo styling */
+.mpesa-label-logo {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.mpesa-payment-wrapper {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 15px;
+}
+
+.mpesa-payment-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 30px 20px;
+    background: linear-gradient(135deg, #00a859 0%, #008a47 100%);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.2);
+}
+
+.mpesa-logo {
+    max-width: 120px;
+    height: auto;
+    margin-bottom: 15px;
+    filter: brightness(0) invert(1);
+}
+
+.mpesa-payment-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: white;
+}
+
+.mpesa-payment-header p {
+    margin: 0;
+    font-size: 16px;
+    opacity: 0.95;
+    color: white;
+}
+
+.mpesa-info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e8e8e8;
+}
+
+.mpesa-info-card h3 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mpesa-info-card h3::before {
+    content: "📱";
+    font-size: 24px;
+}
+
+.mpesa-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: step-counter;
+}
+
+.mpesa-steps li {
+    position: relative;
+    padding: 15px 15px 15px 55px;
+    margin-bottom: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #00a859;
+    counter-increment: step-counter;
+    transition: all 0.3s ease;
+}
+
+.mpesa-steps li:hover {
+    background: #e8f5e9;
+    transform: translateX(5px);
+}
+
+.mpesa-steps li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    background: #00a859;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.mpesa-tips {
+    background: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.mpesa-tips h4 {
+    margin: 0 0 15px 0;
+    color: #856404;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mpesa-tips h4::before {
+    content: "💡";
+    font-size: 20px;
+}
+
+.mpesa-tips ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #856404;
+}
+
+.mpesa-tips li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.mpesa-tips li::marker {
+    color: #ffc107;
+}
+
+.mpesa-order-summary {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    border: 1px solid #dee2e6;
+}
+
+.mpesa-order-summary h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mpesa-order-details {
+    display: grid;
+    gap: 10px;
+}
+
+.mpesa-order-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.mpesa-order-detail-row:last-child {
+    border-bottom: none;
+    padding-top: 12px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #00a859;
+}
+
+/* Phone input styling */
+.mpesa-phone-row input[type="tel"] {
+    transition: all 0.3s ease;
+}
+
+.mpesa-phone-row input[type="tel"]:focus {
+    outline: none;
+    border-color: #008a47 !important;
+    box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.1);
+}
+
+.mpesa-phone-row input[type="tel"]:hover {
+    border-color: #008a47;
+}
+
+/* Check Payment Status Section */
+.mpesa-status-check {
+    transition: all 0.3s ease;
+}
+
+.mpesa-status-check:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#mpesa-check-status-btn {
+    transition: all 0.3s ease;
+}
+
+#mpesa-check-status-btn:hover {
+    background: #138496 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3) !important;
+}
+
+#mpesa-check-status-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Custom message styling without WooCommerce icons */
+#mpesa-status-result .mpesa-success-msg,
+#mpesa-status-result .mpesa-error-msg,
+#mpesa-status-result .mpesa-info-msg,
+#mpesa-status-result .mpesa-notice-msg {
+    animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile responsive for status check */
+@media (max-width: 768px) {
+    .mpesa-status-check {
+        padding: 15px;
+    }
+    
+    #mpesa-check-status-btn {
+        width: 100%;
+        padding: 10px 20px !important;
+    }
+}
+
+.mpesa-order-detail-label {
+    color: #666;
+}
+
+.mpesa-order-detail-value {
+    color: #333;
+    font-weight: 500;
+}
+
+.mpesa-payment-button-wrapper {
+    text-align: center;
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.mpesa-payment-button-wrapper .button,
+.mpesa-payment-button-wrapper #place_order {
+    background: #00a859 !important;
+    color: white !important;
+    border: none !important;
+    padding: 16px 40px !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.3) !important;
+    text-transform: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.mpesa-payment-button-wrapper .button:hover,
+.mpesa-payment-button-wrapper #place_order:hover {
+    background: #008a47 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 168, 89, 0.4) !important;
+}
+
+.mpesa-payment-button-wrapper .button::before,
+.mpesa-payment-button-wrapper #place_order::before {
+    content: "💳";
+    font-size: 22px;
+}
+
+.mpesa-secure-badge {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.mpesa-secure-badge::before {
+    content: "🔒";
+    font-size: 16px;
+}
+
+.mpesa-support {
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e8e8e8;
+    color: #666;
+    font-size: 14px;
+}
+
+.mpesa-support a {
+    color: #00a859;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.mpesa-support a:hover {
+    text-decoration: underline;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .mpesa-payment-wrapper {
+        padding: 0 10px;
+        margin: 20px auto;
+    }
+    
+    .mpesa-payment-header {
+        padding: 20px 15px;
+    }
+    
+    .mpesa-payment-header h2 {
+        font-size: 22px;
+    }
+    
+    .mpesa-info-card {
+        padding: 20px;
+    }
+    
+    .mpesa-steps li {
+        padding: 12px 12px 12px 50px;
+        font-size: 14px;
+    }
+    
+    .mpesa-order-detail-row {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .mpesa-payment-button-wrapper .button,
+    .mpesa-payment-button-wrapper #place_order {
+        width: 100%;
+        padding: 14px 30px !important;
+        font-size: 16px !important;
+    }
+}
+
+/* Animation for step highlight */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+.mpesa-steps li:nth-child(1) {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* Hide default WooCommerce elements on M-Pesa order-pay page */
+body.woocommerce-order-pay .shop_table.order_details {
+    display: none !important;
+}
+
+/* Hide payment method selection */
+body.woocommerce-order-pay ul.payment_methods,
+body.woocommerce-order-pay .wc_payment_methods {
+    display: none !important;
+}
+
+/* Ensure our custom elements and form are visible */
+body.woocommerce-order-pay .mpesa-payment-wrapper,
+body.woocommerce-order-pay form#order_review,
+body.woocommerce-order-pay #payment,
+body.woocommerce-order-pay #place_order {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Make the button inline-flex for proper styling */
+body.woocommerce-order-pay #place_order {
+    display: inline-flex !important;
+}
+
