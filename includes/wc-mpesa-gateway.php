@@ -13,6 +13,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
     public $instructions;
     public $debug           = true;
+    public $enable_for_methods;
+    public $enable_for_virtual;
 
     public $title;
     public $description;
@@ -52,6 +54,9 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->instructions = $this->get_option('instructions');
+        $enable_for_methods = $this->get_option('enable_for_methods', array());
+        $this->enable_for_methods = is_array($enable_for_methods) ? $enable_for_methods : array();
+        $this->enable_for_virtual = $this->get_option('enable_for_virtual', 'yes') === 'yes';
 
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -229,8 +234,25 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'default'     => __('Thank you for shopping with us.', 'woocommerce'),
                 'desc_tip'    => true,
             ),
-
-
+            'enable_for_methods' => array(
+                'title'             => __('Enable for shipping methods', 'woocommerce'),
+                'type'              => 'multiselect',
+                'class'             => 'wc-enhanced-select',
+                'css'               => 'width: 400px;',
+                'default'           => '',
+                'description'       => __('If M-Pesa is only available for certain shipping methods, set it up here. Leave blank to enable for all methods.', 'woocommerce'),
+                'options'           => $this->load_shipping_method_options(),
+                'desc_tip'          => true,
+                'custom_attributes' => array(
+                    'data-placeholder' => __('Select shipping methods', 'woocommerce'),
+                ),
+            ),
+            'enable_for_virtual' => array(
+                'title'   => __('Enable for virtual orders', 'woocommerce'),
+                'label'   => __('Accept M-Pesa if the order is virtual', 'woocommerce'),
+                'type'    => 'checkbox',
+                'default' => 'yes',
+            ),
 
         );
     }
@@ -909,5 +931,157 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'message' => $e->getMessage()
             ));
         }
+    }
+
+    /**
+     * Check If The Gateway Is Available For Use.
+     *
+     * @return bool
+     */
+    public function is_available() {
+        $is_virtual       = true;
+        $shipping_methods = array();
+
+        // Get shipping methods from the cart or order.
+        if ( is_wc_endpoint_url( 'order-pay' ) ) {
+            $order            = wc_get_order( absint( get_query_var( 'order-pay' ) ) );
+            $shipping_methods = $order ? $order->get_shipping_methods() : array();
+            $is_virtual       = ! count( $shipping_methods );
+        } elseif ( WC()->cart && WC()->cart->needs_shipping() ) {
+            $shipping_methods = WC()->cart->get_shipping_methods();
+            $is_virtual       = false;
+        }
+
+        // If M-Pesa is not enabled for virtual orders and the order does not need shipping, return false.
+        if ( ! $this->enable_for_virtual && $is_virtual ) {
+            return false;
+        }
+
+        // Return early if:
+        // - There are no shipping methods restrictions in place.
+        // - The order is virtual so needs no shipping.
+        // - Shipping methods are not set yet.
+        if ( empty( $this->enable_for_methods ) || $is_virtual || ! $shipping_methods ) {
+            return parent::is_available();
+        }
+
+        // Get the selected shipping method ids. This works on both WC_Shipping_Rate and WC_Order_Item_Shipping class instances.
+        $canonical_rate_ids = array_unique(
+            array_values(
+                array_map(
+                    function ( $shipping_method ) {
+                        return $shipping_method && is_callable( array( $shipping_method, 'get_method_id' ) ) && is_callable( array( $shipping_method, 'get_instance_id' ) ) ? $shipping_method->get_method_id() . ':' . $shipping_method->get_instance_id() : null;
+                    },
+                    $shipping_methods
+                )
+            )
+        );
+
+        if ( ! count( $this->get_matching_rates( $canonical_rate_ids ) ) ) {
+            return false;
+        }
+
+        return parent::is_available();
+    }
+
+    /**
+     * Checks to see whether or not the admin settings are being accessed by the current request.
+     *
+     * @return bool
+     */
+    private function is_accessing_settings() {
+        if ( is_admin() ) {
+            if ( ! is_wc_admin_settings_page() ) {
+                return false;
+            }
+            // phpcs:disable WordPress.Security.NonceVerification
+            if ( ! isset( $_REQUEST['tab'] ) || 'checkout' !== $_REQUEST['tab'] ) {
+                return false;
+            }
+            if ( ! isset( $_REQUEST['section'] ) || $this->id !== $_REQUEST['section'] ) {
+                return false;
+            }
+            // phpcs:enable WordPress.Security.NonceVerification
+
+            return true;
+        }
+
+        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+            global $wp;
+            if ( isset( $wp->query_vars['rest_route'] ) && false !== strpos( $wp->query_vars['rest_route'], '/payment_gateways' ) ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Loads all of the shipping method options for the enable_for_methods field.
+     *
+     * @return array
+     */
+    private function load_shipping_method_options() {
+        // Since this is expensive, we only want to do it if we're actually on the settings page.
+        if ( ! $this->is_accessing_settings() ) {
+            return array();
+        }
+
+        $data_store = WC_Data_Store::load( 'shipping-zone' );
+        $raw_zones  = $data_store->get_zones();
+        $zones      = array();
+
+        foreach ( $raw_zones as $raw_zone ) {
+            $zones[] = new WC_Shipping_Zone( $raw_zone );
+        }
+
+        $zones[] = new WC_Shipping_Zone( 0 );
+
+        $options = array();
+        foreach ( WC()->shipping()->load_shipping_methods() as $method ) {
+
+            $options[ $method->get_method_title() ] = array();
+
+            // Translators: %1$s shipping method name.
+            $options[ $method->get_method_title() ][ $method->id ] = sprintf( __( 'Any &quot;%1$s&quot; method', 'woocommerce' ), $method->get_method_title() );
+
+            foreach ( $zones as $zone ) {
+
+                $shipping_method_instances = $zone->get_shipping_methods();
+
+                foreach ( $shipping_method_instances as $shipping_method_instance_id => $shipping_method_instance ) {
+
+                    if ( $shipping_method_instance->id !== $method->id ) {
+                        continue;
+                    }
+
+                    $option_id = $shipping_method_instance->get_rate_id();
+
+                    // Translators: %1$s shipping method title, %2$s shipping method id.
+                    $option_instance_title = sprintf( __( '%1$s (#%2$s)', 'woocommerce' ), $shipping_method_instance->get_title(), $shipping_method_instance_id );
+
+                    // Translators: %1$s zone name, %2$s shipping method instance name.
+                    $option_title = sprintf( __( '%1$s &ndash; %2$s', 'woocommerce' ), $zone->get_id() ? $zone->get_zone_name() : __( 'Other locations', 'woocommerce' ), $option_instance_title );
+
+                    $options[ $method->get_method_title() ][ $option_id ] = $option_title;
+                }
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Indicates whether a rate exists in an array of canonically-formatted rate IDs that activates this gateway.
+     *
+     * @param array $rate_ids Rate ids to check.
+     * @return array
+     */
+    private function get_matching_rates( $rate_ids ) {
+        // Ensure enable_for_methods is an array
+        $enable_for_methods = is_array( $this->enable_for_methods ) ? $this->enable_for_methods : array();
+        
+        // First, match entries in 'method_id:instance_id' format. Then, match entries in 'method_id' format by stripping off the instance ID from the candidates.
+        return array_unique( array_merge( array_intersect( $enable_for_methods, $rate_ids ), array_intersect( $enable_for_methods, array_unique( array_map( 'wc_get_string_before_colon', $rate_ids ) ) ) ) );
     }
 }
