@@ -234,6 +234,19 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'default'     => __('Thank you for shopping with us.', 'woocommerce'),
                 'desc_tip'    => true,
             ),
+            'successful_order_status' => array(
+                'title'       => __('Successful Payment Order Status', 'woocommerce'),
+                'type'        => 'select',
+                'options'     => array(
+                    'processing' => __('Processing', 'woocommerce'),
+                    'completed'  => __('Completed', 'woocommerce'),
+                    'on-hold'    => __('On hold', 'woocommerce'),
+                ),
+                'description' => __('Choose the order status to apply when an M-Pesa payment is confirmed successfully.', 'woocommerce'),
+                'default'     => 'processing',
+                'desc_tip'    => true,
+                'class'       => 'select2 wc-enhanced-select',
+            ),
             'enable_for_methods' => array(
                 'title'             => __('Enable for shipping methods', 'woocommerce'),
                 'type'              => 'multiselect',
@@ -255,6 +268,51 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             ),
 
         );
+    }
+
+    private function get_successful_order_status()
+    {
+        $allowed_statuses = array('processing', 'completed', 'on-hold');
+        $configured_status = $this->get_option('successful_order_status', 'processing');
+
+        return in_array($configured_status, $allowed_statuses, true) ? $configured_status : 'processing';
+    }
+
+    private function is_payment_confirmed($order)
+    {
+        if (!$order instanceof WC_Order) {
+            return false;
+        }
+
+        if ('yes' === $order->get_meta('_mpesa_payment_confirmed')) {
+            return true;
+        }
+
+        return !empty($order->get_meta('_mpesa_receipt_number')) || !empty($order->get_transaction_id());
+    }
+
+    private function mark_order_as_paid($order, $transaction_id = '', $note = '')
+    {
+        $successful_status = $this->get_successful_order_status();
+
+        $order->update_meta_data('_mpesa_payment_confirmed', 'yes');
+        $order->update_meta_data('_mpesa_payment_confirmed_at', current_time('mysql'));
+
+        if (!empty($transaction_id)) {
+            $order->set_transaction_id($transaction_id);
+        }
+
+        if (!$order->is_paid()) {
+            $order->payment_complete($transaction_id);
+        }
+
+        if ($order->get_status() !== $successful_status) {
+            $order->update_status($successful_status, $note);
+        } elseif (!empty($note)) {
+            $order->add_order_note($note);
+        }
+
+        return $successful_status;
     }
 
     public function process_payment($order_id)
@@ -296,6 +354,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             
             // Mark as on-hold (we're awaiting the payment)
             $order->update_status('on-hold', __('Awaiting M-Pesa payment confirmation.', 'woocommerce'));
+            $order->update_meta_data('_mpesa_payment_confirmed', 'no');
+            $order->save();
 
             // Get phone number AFTER potential update
             $phone_number = $order->get_billing_phone();
@@ -479,23 +539,17 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             $order->update_meta_data('_mpesa_transaction_date', $transactionDate);
             $order->update_meta_data('_mpesa_phone_number', $phoneNumber);
             
-            // Add order note
-            $order->add_order_note(sprintf(
+            $successful_status = $this->mark_order_as_paid($order, $mpesaReceiptNumber, sprintf(
                 __('M-Pesa payment completed. Receipt: %s, Phone: %s', 'woocommerce'),
                 $mpesaReceiptNumber,
                 $phoneNumber
             ));
             
-            // Mark as processing or completed based on your business logic
-            // $order->payment_complete($mpesaReceiptNumber);
-
-            //Mark as completed
-            $order->update_status('completed', __('M-Pesa payment completed.', 'woocommerce'));
-            
-            error_log("M-Pesa Webhook: Order #{$order_id} payment completed. Receipt: {$mpesaReceiptNumber}");
+            error_log("M-Pesa Webhook: Order #{$order_id} payment completed. Receipt: {$mpesaReceiptNumber}. Status set to {$successful_status}");
             
         } else {
             // Payment failed or cancelled - set to pending so user can retry
+            $order->update_meta_data('_mpesa_payment_confirmed', 'no');
             $order->update_status('pending', sprintf(
                 __('M-Pesa payment failed: %s. You can retry the payment from your order page.', 'woocommerce'),
                 $resultDesc
@@ -529,7 +583,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
         $order = wc_get_order($order_id);
 
-        if ($order && $order->get_status() === 'completed') {
+        if ($order && $this->is_payment_confirmed($order)) {
             wp_send_json_success(array('status' => 'completed'));
         } else if ($order && $order->get_status() === 'pending') {
             $redirect_url = $order->get_checkout_payment_url();
@@ -592,7 +646,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         error_log("M-Pesa: before_pay_page called for order #{$order_id}, status: {$order_status}, payment method: " . $order->get_payment_method());
         
         // Show enhanced payment interface
-        if (in_array($order_status, array('pending', 'failed', 'on-hold'))) {
+        if (in_array($order_status, array('pending', 'failed'), true) || ('on-hold' === $order_status && !$this->is_payment_confirmed($order))) {
             $logo_url = plugin_dir_url(__DIR__) . 'assets/M-PESA_LOGO-01.svg.png';
             $phone = $order->get_billing_phone();
             $amount = $order->get_total();
@@ -677,7 +731,23 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         error_log("M-Pesa Thank You Page - Order #{$order_id}, Status: {$order_status}");
 
         // Show different messages based on order status
-        if ($order_status === 'pending' || $order_status === 'failed') {
+        if ($this->is_payment_confirmed($order)) {
+            $receipt_number = $order->get_meta('_mpesa_receipt_number');
+            $transaction_id = $order->get_transaction_id();
+            
+            echo '<div style="margin: 20px 0; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">';
+            echo '<strong style="font-size: 16px; color: #155724;">✓ ' . __('Payment Received!', 'woocommerce') . '</strong><br>';
+            
+            if ($receipt_number) {
+                echo '<span style="color: #155724;">' . sprintf(__('M-Pesa Receipt Number: %s', 'woocommerce'), '<strong>' . esc_html($receipt_number) . '</strong>') . '</span>';
+            } else if ($transaction_id) {
+                echo '<span style="color: #155724;">' . sprintf(__('Transaction ID: %s', 'woocommerce'), '<strong>' . esc_html($transaction_id) . '</strong>') . '</span>';
+            } else {
+                echo '<span style="color: #155724;">' . __('Your M-Pesa payment has been successfully received and confirmed.', 'woocommerce') . '</span>';
+            }
+            
+            echo '</div>';
+        } else if ($order_status === 'pending' || $order_status === 'failed') {
             // Payment failed or is pending - show retry option
             echo '<div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">';
             echo '<strong style="font-size: 16px;">' . __('Payment Not Completed', 'woocommerce') . '</strong><br>';
@@ -692,8 +762,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             echo '</p>';
             
         } else if ($order_status === 'on-hold' || $order_status === 'processing') {
-            // Payment is processing - show waiting message
-            echo '<div style="margin: 20px 0; padding: 15px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">';
+            // Payment is processing - show waiting message (id for JS to hide when status updates)
+            echo '<div id="awaiting-message" style="margin: 20px 0; padding: 15px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">';
             echo '<strong style="font-size: 16px;">' . __('Awaiting Payment Confirmation', 'woocommerce') . '</strong><br>';
             echo '<span style="color: #0c5460;">' . __('Please check your phone for the M-Pesa payment prompt. Enter your PIN to complete the payment.', 'woocommerce') . '</span>';
             echo '</div>';
@@ -713,23 +783,6 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             // Enqueue the polling script
             wp_enqueue_script('mpesa-polling', plugin_dir_url(__FILE__) . 'polling.js', array(), null, true);
             
-        } else if ($order_status === 'completed') {
-            // Payment completed
-            $receipt_number = $order->get_meta('_mpesa_receipt_number');
-            $transaction_id = $order->get_transaction_id();
-            
-            echo '<div style="margin: 20px 0; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">';
-            echo '<strong style="font-size: 16px; color: #155724;">✓ ' . __('Payment Received!', 'woocommerce') . '</strong><br>';
-            
-            if ($receipt_number) {
-                echo '<span style="color: #155724;">' . sprintf(__('M-Pesa Receipt Number: %s', 'woocommerce'), '<strong>' . esc_html($receipt_number) . '</strong>') . '</span>';
-            } else if ($transaction_id) {
-                echo '<span style="color: #155724;">' . sprintf(__('Transaction ID: %s', 'woocommerce'), '<strong>' . esc_html($transaction_id) . '</strong>') . '</span>';
-            } else {
-                echo '<span style="color: #155724;">' . __('Your M-Pesa payment has been successfully received and confirmed.', 'woocommerce') . '</span>';
-            }
-            
-            echo '</div>';
         }
     }
 
@@ -750,6 +803,12 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         if (!$order) {
             error_log("M-Pesa Reinitiate: Order #{$order_id} not found");
             wp_send_json_error(array('message' => 'Order not found'));
+            return;
+        }
+
+        if ($this->is_payment_confirmed($order)) {
+            error_log("M-Pesa Reinitiate: Order #{$order_id} already has a confirmed payment");
+            wp_send_json_error(array('message' => 'Payment has already been confirmed for this order'));
             return;
         }
 
@@ -876,8 +935,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 // Payment was successful!
                 $merchantRequestID = $result['MerchantRequestID'] ?? '';
                 
-                // Check if already completed
-                if (in_array($order->get_status(), array('completed', 'processing'))) {
+                if ($this->is_payment_confirmed($order)) {
                     wp_send_json_success(array(
                         'status' => 'already_completed',
                         'message' => __('✓ This order has already been paid and processed.', 'woocommerce')
@@ -885,21 +943,16 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                     return;
                 }
                 
-                // Mark payment as complete and set transaction ID
-                $order->add_order_note(sprintf(
+                $successful_status = $this->mark_order_as_paid($order, $merchantRequestID, sprintf(
                     __('Payment confirmed via manual status query. MerchantRequestID: %s', 'woocommerce'),
                     $merchantRequestID
                 ));
-                $order->payment_complete($merchantRequestID);
                 
-                // Explicitly set order status to completed
-                $order->update_status('completed', __('Order completed after payment confirmation via status query.', 'woocommerce'));
-                
-                error_log("M-Pesa: Order #{$order_id} marked as completed via status query");
+                error_log("M-Pesa: Order #{$order_id} marked as {$successful_status} via status query");
                 
                 wp_send_json_success(array(
                     'status' => 'paid',
-                    'message' => __('✓ Payment confirmed! Your order has been completed. Redirecting...', 'woocommerce'),
+                    'message' => __('✓ Payment confirmed! Your order has been updated successfully. Redirecting...', 'woocommerce'),
                     'redirect' => $this->get_return_url($order)
                 ));
                 

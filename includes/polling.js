@@ -7,16 +7,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check local storage for order status
     var orderStatus = localStorage.getItem('order_status_' + order_id);
 
+    function hideAwaitingShowOneState(showSuccess, showFailed) {
+        var awaitingEl = document.getElementById('awaiting-message');
+        if (awaitingEl) awaitingEl.classList.add('hidden');
+        var spinnerEl = document.getElementById('spinner');
+        if (spinnerEl) spinnerEl.classList.add('hidden');
+        var successEl = document.getElementById('success-message');
+        var failedEl = document.getElementById('failed-message');
+        if (showSuccess) {
+            if (successEl) successEl.classList.remove('hidden');
+            if (failedEl) failedEl.classList.add('hidden');
+        } else if (showFailed) {
+            if (failedEl) failedEl.classList.remove('hidden');
+            if (successEl) successEl.classList.add('hidden');
+        }
+    }
+
     if (orderStatus === 'completed') {
-        // Show the success message if the order is already completed
-        document.getElementById('success-message').classList.remove('hidden');
-        document.getElementById('spinner').classList.add('hidden');
-        document.getElementById('view-order-link').classList.remove('hidden');
-        document.getElementById('view-order-link').href = homeUrl + '/my-account/view-order/' + order_id;
+        hideAwaitingShowOneState(true, false);
+        var viewOrderLink = document.getElementById('view-order-link');
+        if (viewOrderLink) {
+            viewOrderLink.classList.remove('hidden');
+            viewOrderLink.href = homeUrl + '/my-account/view-order/' + order_id;
+        }
     } else if (orderStatus === 'failed') { 
-        // Show the failed message if the order has failed
-        document.getElementById('failed-message').classList.remove('hidden');
-        document.getElementById('spinner').classList.add('hidden');
+        hideAwaitingShowOneState(false, true);
     } else {
         // Start polling if the order is not completed
         checkOrderStatus();
@@ -39,23 +54,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log('Order status: completed' + order_id);
                     console.log("status: " + data.data.status);
 
-                    // Show the success message
-                    document.getElementById('success-message').classList.remove('hidden');
-                    document.getElementById('spinner').classList.add('hidden');
-
-                    // Create and append the order link
+                    hideAwaitingShowOneState(true, false);
                     var viewOrderLink = document.getElementById('view-order-link');
-                    viewOrderLink.href = homeUrl + '/my-account/view-order/' + order_id;
-                    viewOrderLink.classList.remove('hidden');
+                    if (viewOrderLink) {
+                        viewOrderLink.href = homeUrl + '/my-account/view-order/' + order_id;
+                        viewOrderLink.classList.remove('hidden');
+                    }
 
                     // Save the order status in local storage
                     localStorage.setItem('order_status_' + order_id, 'completed');
                 } else if (data.data.status == 'failed') {
-                    console.log('Payment Pending.', data);
+                    console.log('Payment failed.', data);
                     localStorage.setItem('order_status_' + order_id, 'pending');
 
-                    document.getElementById('spinner').classList.add('hidden');
-                    document.getElementById('failed-message').classList.remove('hidden');
+                    hideAwaitingShowOneState(false, true);
                     // Stop polling
                     retryCount = maxRetries;
 
@@ -72,18 +84,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         
 
                 } else if (retryCount < maxRetries) {
-                    // Show the spinner and start polling
-                    document.getElementById('spinner').classList.remove('hidden');
+                    // Keep showing spinner and polling
+                    var spinnerEl = document.getElementById('spinner');
+                    if (spinnerEl) spinnerEl.classList.remove('hidden');
                     retryCount++;
                     pollOrderStatus();
-                    console.log('Pollingggg order' + order_id + ' status...');
+                    console.log('Polling order ' + order_id + ' status...');
                 } else {
-                    //this means that the max retries have been reached
+                    // Max retries reached
                     console.log('Max retries reached. Stopping polling.');
                     localStorage.setItem('order_status_' + order_id, 'pending');
-
-                    document.getElementById('spinner').classList.add('hidden');
-                    document.getElementById('failed-message').classList.remove('hidden');
+                    hideAwaitingShowOneState(false, true);
                 }
             })
             .catch(error => {

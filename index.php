@@ -3,8 +3,8 @@
  * Plugin Name: MPESA Payment Gateway
  * Plugin URI: https://github.com/mobipine/mp_woocommerce_mpesa_plugin
  * Description: Custom built MPESA payment gateway for WooCommerce with transaction status verification
- * Author: Mobipine Limited
- * Author URI: https://mobipine.com
+ * Author: Andrew Muchiri
+ * Author URI: https://portfolio.mkbuilds.live
  * Version: 2.1.2
  * GitHub Plugin URI: mobipine/mp_woocommerce_mpesa_plugin
  * GitHub Branch: main
