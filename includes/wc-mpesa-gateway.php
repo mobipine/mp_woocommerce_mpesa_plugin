@@ -537,7 +537,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         if (!$checkoutRequestID || !hash_equals((string) $order->get_meta('_checkout_request_id'), (string) $checkoutRequestID)) {
             wp_die('Callback request does not match this order', 'Bad Request', array('response' => 400));
         }
-        if ($order->is_paid()) {
+        if ($this->is_payment_confirmed($order)) {
             wp_send_json_success(array('message' => 'Order already paid'));
         }
         error_log("M-Pesa Webhook: Processing callback for Order #{$order_id}");
