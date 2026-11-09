@@ -305,6 +305,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
         $order->update_meta_data('_mpesa_payment_confirmed', 'yes');
         $order->update_meta_data('_mpesa_payment_confirmed_at', current_time('mysql'));
+        $order->update_meta_data('_mpesa_payment_attempt_status', 'paid');
+        $order->delete_meta_data('_mpesa_last_result_code');
 
         if (!empty($transaction_id)) {
             $order->set_transaction_id($transaction_id);
@@ -361,6 +363,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             // Mark as on-hold (we're awaiting the payment)
             $order->update_status('on-hold', __('Awaiting M-Pesa payment confirmation.', 'woocommerce'));
             $order->update_meta_data('_mpesa_payment_confirmed', 'no');
+            $order->update_meta_data('_mpesa_payment_attempt_status', 'awaiting');
+            $order->delete_meta_data('_mpesa_last_result_code');
             $order->save();
 
             // Get phone number AFTER potential update
@@ -457,6 +461,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             
             // Update order status to pending so it can be retried
             if (isset($order) && $order) {
+                $order->update_meta_data('_mpesa_payment_attempt_status', 'failed');
                 $order->update_status('pending', sprintf(
                     __('M-Pesa payment failed: %s', 'woocommerce'),
                     $e->getMessage()
@@ -532,6 +537,9 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         if (!$checkoutRequestID || !hash_equals((string) $order->get_meta('_checkout_request_id'), (string) $checkoutRequestID)) {
             wp_die('Callback request does not match this order', 'Bad Request', array('response' => 400));
         }
+        if ($order->is_paid()) {
+            wp_send_json_success(array('message' => 'Order already paid'));
+        }
         error_log("M-Pesa Webhook: Processing callback for Order #{$order_id}");
 
         if ($resultCode == 0) {
@@ -577,6 +585,8 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         } else {
             // Payment failed or cancelled - set to pending so user can retry
             $order->update_meta_data('_mpesa_payment_confirmed', 'no');
+            $order->update_meta_data('_mpesa_payment_attempt_status', 'failed');
+            $order->update_meta_data('_mpesa_last_result_code', (string) $resultCode);
             $order->update_status('pending', sprintf(
                 __('M-Pesa payment failed: %s. You can retry the payment from your order page.', 'woocommerce'),
                 $resultDesc
