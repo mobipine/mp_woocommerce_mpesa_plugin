@@ -1,5 +1,4 @@
 import { decodeEntities } from '@wordpress/html-entities';
-import { useState } from '@wordpress/element';
 
 const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
 const { getSetting } = window.wc.wcSettings;
@@ -9,27 +8,27 @@ const settings = getSetting('mpesa_data', {});
 const label = decodeEntities(settings.title);
 
 const Content = () => {
-    const [phoneNumber, setPhoneNumber] = useState('');
-
-    const handleInputChange = (event) => {
-        setPhoneNumber(event.target.value);
-    };
-
     return (
-        <div>
-            <p>{decodeEntities(settings.description || '')}</p>
-            
+        <div className="src-mpesa-instructions">
+            <strong>Pay securely with M-PESA</strong>
+            <p>{decodeEntities(settings.description || 'A payment prompt will be sent to the phone number above after you place the order.')}</p>
+            <ol>
+                <li>Confirm the M-PESA phone number in Contact information.</li>
+                <li>Select Place order to receive a prompt on that phone.</li>
+                <li>Enter your M-PESA PIN and wait for payment confirmation.</li>
+            </ol>
+            <small>Keep your phone on and unlocked. Never share your PIN with anyone.</small>
         </div>
     );
 };
 
 const Icon = () => {
-    return settings.icon ? <img src={settings.icon} style={{}} /> : '';
+    return settings.icon ? <img src={settings.icon} alt="" /> : '';
 };
 
 const Label = () => {
     return (
-        <span style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className="src-mpesa-label">
             {label}
             <Icon />
         </span>

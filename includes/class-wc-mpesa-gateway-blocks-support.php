@@ -31,7 +31,7 @@ final class WC_Mpesa_Gateway_Blocks_Support extends AbstractPaymentMethodType {
 				'wp-element',
 				'wp-html-entities',
 			),
-			null, // or time() or filemtime( ... ) to skip caching
+			filemtime( plugin_dir_path( __DIR__ ) . 'build/index.js' ),
 			true
 		);
 
@@ -43,6 +43,7 @@ final class WC_Mpesa_Gateway_Blocks_Support extends AbstractPaymentMethodType {
 		return array(
 			'title'        => $this->get_setting( 'title' ),
 			'description'  => $this->get_setting( 'description' ),
+			'instructions' => $this->get_setting( 'instructions' ),
 			'icon'         => plugin_dir_url( __DIR__ ) . 'assets/icon.png',
 			
 

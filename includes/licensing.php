@@ -75,8 +75,6 @@ function myplugin_validate_license($force_check = false) {
     }
 
     $response_body = json_decode(wp_remote_retrieve_body($response), true);
-    error_log(print_r($license_key, true));
-    error_log(print_r($response_body, true));
     $is_valid = $response_body['status'] === 'success';
 
     if (!$is_valid) {

@@ -12,7 +12,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 {
 
     public $instructions;
-    public $debug           = true;
+    public $debug           = false;
     public $enable_for_methods;
     public $enable_for_virtual;
 
@@ -137,7 +137,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'label'       => __('Enable ' . $this->method_title, 'woocommerce'),
                 'type'        => 'checkbox',
                 'description' => '',
-                'default'     => 'yes',
+                'default'     => 'no',
             ),
             'title'              => array(
                 'title'       => __('Method Title', 'woocommerce'),
@@ -153,6 +153,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                     'sandbox' => __('Sandbox', 'woocommerce'),
                     'live'    => __('Live', 'woocommerce'),
                 ),
+                'default' => 'sandbox',
                 'description' => __('M-Pesa Environment', 'woocommerce'),
                 'desc_tip'    => true,
                 'class'       => 'select2 wc-enhanced-select',
@@ -174,28 +175,28 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'title'       => __('Business Shortcode', 'woocommerce'),
                 'type'        => 'text',
                 'description' => __('Your M-Pesa Business Till/Paybill Number. Use "Online Shortcode" in Sandbox', 'woocommerce'),
-                'default'     => __(174379, 'woocommerce'),
+                'default'     => '',
                 'desc_tip'    => true,
             ),
             'key'                => array(
                 'title'       => __('App Consumer Key', 'woocommerce'),
-                'type'        => 'text',
+                'type'        => 'password',
                 'description' => __('Your App Consumer Key From Safaricom Daraja.', 'woocommerce'),
-                'default'     => '7n6k5qAmVMm8uvLzZ0bYLI9ydTGu7oto',
+                'default'     => '',
                 'desc_tip'    => true,
             ),
             'secret'             => array(
                 'title'       => __('App Consumer Secret', 'woocommerce'),
-                'type'        => 'text',
+                'type'        => 'password',
                 'description' => __('Your App Consumer Secret From Safaricom Daraja.', 'woocommerce'),
-                'default'     => '8pr0NL7E7yhessMF',
+                'default'     => '',
                 'desc_tip'    => true,
             ),
             'passkey'            => array(
                 'title'       => __('Online Pass Key', 'woocommerce'),
-                'type'        => 'text',
+                'type'        => 'password',
                 'description' => __('Used to create a password for use when making a Lipa Na M-Pesa Online Payment API call.', 'woocommerce'),
-                'default'     => 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919',
+                'default'     => '',
                 'desc_tip'    => true,
                 'class'       => 'wide-input',
                 'css'         => 'min-width: 55%;',
@@ -208,6 +209,13 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 'desc_tip'    => true,
                 'class'       => 'wide-input',
                 'css'         => 'min-width: 55%;',
+            ),
+            'callback_token'      => array(
+                'title'       => __('Callback verification token', 'woocommerce'),
+                'type'        => 'password',
+                'description' => __('Set a long random secret. The gateway appends it to the configured callback URL and requires it on every callback.', 'woocommerce'),
+                'default'     => '',
+                'desc_tip'    => true,
             ),
             'reference'          => array(
                 'title'             => __('Account Reference', 'woocommerce'),
@@ -328,28 +336,26 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             
             // CRITICAL: Check if phone number was updated in the form (from order-pay page)
             // Log all POST data for debugging
-            error_log("M-Pesa: POST data keys: " . implode(', ', array_keys($_POST)));
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
             
             if (isset($_POST['billing_phone']) && !empty($_POST['billing_phone'])) {
                 $updated_phone = sanitize_text_field($_POST['billing_phone']);
                 $old_phone = $order->get_billing_phone();
                 
-                error_log("M-Pesa: Found billing_phone in POST: {$updated_phone}, Old phone: {$old_phone}");
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
                 
                 if ($updated_phone !== $old_phone) {
                     $order->set_billing_phone($updated_phone);
                     $order->add_order_note(sprintf(
-                        __('Customer updated billing phone from %s to %s before payment', 'woocommerce'),
-                        $old_phone,
-                        $updated_phone
+                        __('Customer updated billing phone before payment.', 'woocommerce')
                     ));
                     $order->save();
-                    error_log("M-Pesa: ✓ Phone UPDATED from {$old_phone} to {$updated_phone} for order #{$order_id}");
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
                 } else {
-                    error_log("M-Pesa: Phone unchanged: {$updated_phone}");
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
                 }
             } else {
-                error_log("M-Pesa: WARNING - billing_phone NOT found in POST data!");
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
             }
             
             // Mark as on-hold (we're awaiting the payment)
@@ -359,9 +365,13 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
             // Get phone number AFTER potential update
             $phone_number = $order->get_billing_phone();
-            $amount = (int)$order->get_total();
+            $order_total = (float) $order->get_total();
+            if ($order->get_currency() !== 'KES' || $order_total <= 0 || floor($order_total) !== $order_total) {
+                throw new Exception('M-Pesa checkout requires a positive whole-shilling KES total.');
+            }
+            $amount = (int) $order_total;
 
-            error_log("Order #{$order_id} - Amount: {$amount}, Phone to use: {$phone_number}");
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
 
             // Validate phone number presence
             if (empty($phone_number)) {
@@ -383,14 +393,17 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             $consumerKey = $this->get_option('key');
             $consumerSecret = $this->get_option('secret');
             $callbackUrl = $this->get_option('callback');
+            $callbackToken = trim((string) $this->get_option('callback_token'));
             $accountReference = $this->get_option('reference');
             $env = $this->get_option('env');
 
             // Validate required settings
-            if (empty($passkey) || empty($shortCode) || empty($consumerKey) || empty($consumerSecret)) {
+            if (empty($passkey) || empty($shortCode) || empty($consumerKey) || empty($consumerSecret) || empty($callbackUrl) || empty($callbackToken)) {
                 error_log("M-Pesa gateway not properly configured for order #{$order_id}");
                 throw new Exception('M-Pesa gateway is not properly configured. Please contact support.');
             }
+
+            $callbackUrl = add_query_arg('src_mpesa_token', $callbackToken, $callbackUrl);
 
             $creds = [
                 'passkey' => $passkey,
@@ -405,13 +418,13 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             $mpesa_service = new MpesaService();
             $response = $mpesa_service->stk_push($phone_number, $amount, $order_id, $creds, $callbackUrl, $env);
             
-            error_log("M-Pesa API Response for order #{$order_id}: " . $response);
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
 
             $response_data = json_decode($response, true);
 
             // Check if response is valid JSON
             if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log("Invalid JSON response from M-Pesa API for order #{$order_id}: " . json_last_error_msg());
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
                 throw new Exception('Failed to process M-Pesa payment. Invalid response from payment provider.');
             }
 
@@ -464,6 +477,12 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
     public function webhook()
     {
+        $expected_token = trim((string) $this->get_option('callback_token'));
+        $received_token = isset($_GET['src_mpesa_token']) ? sanitize_text_field(wp_unslash($_GET['src_mpesa_token'])) : '';
+        if ($expected_token === '' || $received_token === '' || !hash_equals($expected_token, $received_token)) {
+            wp_die('Invalid callback token', 'Forbidden', array('response' => 403));
+        }
+
         // Check if the request method is POST
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             error_log("M-Pesa Webhook: Invalid request method. Only POST requests are allowed.");
@@ -472,7 +491,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
         // Get the callback object
         $request_data = file_get_contents('php://input');
-        error_log("M-Pesa Callback received: " . $request_data);
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
         
         $callback = json_decode($request_data, true);
 
@@ -489,6 +508,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
         }
 
         $merchantRequestID = $callback['Body']['stkCallback']['MerchantRequestID'];
+        $checkoutRequestID = $callback['Body']['stkCallback']['CheckoutRequestID'] ?? '';
         $resultDesc = isset($callback['Body']['stkCallback']['ResultDesc']) ? $callback['Body']['stkCallback']['ResultDesc'] : 'No description';
         $resultCode = isset($callback['Body']['stkCallback']['ResultCode']) ? $callback['Body']['stkCallback']['ResultCode'] : -1;
 
@@ -509,6 +529,9 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
 
         $order = $orders[0];
         $order_id = $order->get_id();
+        if (!$checkoutRequestID || !hash_equals((string) $order->get_meta('_checkout_request_id'), (string) $checkoutRequestID)) {
+            wp_die('Callback request does not match this order', 'Bad Request', array('response' => 400));
+        }
         error_log("M-Pesa Webhook: Processing callback for Order #{$order_id}");
 
         if ($resultCode == 0) {
@@ -520,7 +543,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             // Extract payment details
             $mpesaReceiptNumber = '';
             $transactionDate = '';
-            $phoneNumber = '';
+            $callbackAmount = null;
             
             foreach ($callbackMetadata as $item) {
                 if ($item['Name'] == 'MpesaReceiptNumber') {
@@ -529,21 +552,25 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
                 if ($item['Name'] == 'TransactionDate') {
                     $transactionDate = $item['Value'];
                 }
-                if ($item['Name'] == 'PhoneNumber') {
-                    $phoneNumber = $item['Value'];
+                if ($item['Name'] == 'Amount') {
+                    $callbackAmount = $item['Value'];
                 }
+            }
+
+            if ($order->is_paid()) {
+                wp_send_json_success(array('message' => 'Callback already processed'));
+            }
+            if ($callbackAmount === null || !is_numeric($callbackAmount) || (float) $callbackAmount !== (float) $order->get_total() || $order->get_currency() !== 'KES' || $mpesaReceiptNumber === '') {
+                $order->add_order_note(__('M-Pesa callback rejected because its amount, currency or receipt did not match the order.', 'woocommerce'));
+                $order->save();
+                wp_die('Payment details do not match the order', 'Bad Request', array('response' => 400));
             }
             
             // Save payment details to order meta
             $order->update_meta_data('_mpesa_receipt_number', $mpesaReceiptNumber);
             $order->update_meta_data('_mpesa_transaction_date', $transactionDate);
-            $order->update_meta_data('_mpesa_phone_number', $phoneNumber);
             
-            $successful_status = $this->mark_order_as_paid($order, $mpesaReceiptNumber, sprintf(
-                __('M-Pesa payment completed. Receipt: %s, Phone: %s', 'woocommerce'),
-                $mpesaReceiptNumber,
-                $phoneNumber
-            ));
+            $successful_status = $this->mark_order_as_paid($order, $mpesaReceiptNumber, __('M-Pesa payment completed.', 'woocommerce'));
             
             error_log("M-Pesa Webhook: Order #{$order_id} payment completed. Receipt: {$mpesaReceiptNumber}. Status set to {$successful_status}");
             
@@ -834,11 +861,11 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
     public function check_payment_status()
     {
         try {
-            error_log("M-Pesa: check_payment_status called with POST: " . print_r($_POST, true));
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
             
             // Verify nonce
             if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mpesa_check_status')) {
-                error_log("M-Pesa: Nonce verification failed. Nonce: " . (isset($_POST['nonce']) ? $_POST['nonce'] : 'NOT SET'));
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
                 throw new Exception(__('Security check failed', 'woocommerce'));
             }
             
@@ -912,7 +939,7 @@ class WC_Mpesa_Gateway extends WC_Payment_Gateway
             $mpesa_service = new MpesaService();
             $response = $mpesa_service->query_transaction_status($checkoutRequestID, $creds, $env);
             
-            error_log("M-Pesa Status Query Response: " . $response);
+        // Sensitive payment diagnostics are intentionally not written to PHP error logs.
             
             $result = json_decode($response, true);
             

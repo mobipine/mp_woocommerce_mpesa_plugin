@@ -1,1 +1,35 @@
-(()=>{"use strict";const e=window.wp.htmlEntities,t=window.wp.element,s=window.ReactJSXRuntime,{registerPaymentMethod:i}=window.wc.wcBlocksRegistry,{getSetting:n}=window.wc.wcSettings,c=n("mpesa_data",{}),a=(0,e.decodeEntities)(c.title),d=()=>{const[i,n]=(0,t.useState)("");return(0,s.jsx)("div",{children:(0,s.jsx)("p",{children:(0,e.decodeEntities)(c.description||"")})})},o=()=>c.icon?(0,s.jsx)("img",{src:c.icon,style:{}}):"",w=()=>(0,s.jsxs)("span",{style:{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"},children:[a,(0,s.jsx)(o,{})]});i({name:"mpesa",label:(0,s.jsx)(w,{}),content:(0,s.jsx)(d,{}),edit:(0,s.jsx)(d,{}),canMakePayment:()=>!0,ariaLabel:a,supports:{features:c.supports}})})();
+(() => {
+  'use strict';
+  const { createElement: h } = window.wp.element;
+  const { decodeEntities } = window.wp.htmlEntities;
+  const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
+  const { getSetting } = window.wc.wcSettings;
+  const settings = getSetting('mpesa_data', {});
+  const title = decodeEntities(settings.title || 'M-PESA');
+
+  const Content = () => h('div', { className: 'src-mpesa-instructions' },
+    h('strong', null, 'Pay securely with M-PESA'),
+    h('p', null, decodeEntities(settings.description || 'A payment prompt will be sent to the phone number above after you place the order.')),
+    h('ol', null,
+      h('li', null, 'Confirm the M-PESA phone number in Contact information.'),
+      h('li', null, 'Select Place order to receive a prompt on that phone.'),
+      h('li', null, 'Enter your M-PESA PIN and wait for payment confirmation.')
+    ),
+    h('small', null, 'Keep your phone on and unlocked. Never share your PIN with anyone.')
+  );
+
+  const Label = () => h('span', { className: 'src-mpesa-label' },
+    h('span', null, title),
+    settings.icon ? h('img', { src: settings.icon, alt: '' }) : null
+  );
+
+  registerPaymentMethod({
+    name: 'mpesa',
+    label: h(Label),
+    content: h(Content),
+    edit: h(Content),
+    canMakePayment: () => true,
+    ariaLabel: title,
+    supports: { features: settings.supports },
+  });
+})();

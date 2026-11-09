@@ -20,7 +20,7 @@ class MpesaService
 
         // Ensure phone is in the correct format
         if (!preg_match('/^2547\d{8}$/', $phone) && !preg_match('/^2541\d{8}$/', $phone)) {
-            die("Invalid phone number format. Use 2547XXXXXXXX or 2541XXXXXXXX.");
+            return json_encode(array('errorCode' => 'INVALID_PHONE', 'errorMessage' => 'Invalid phone number format.'));
         }
 
         $accessToken = $this->getAccessToken($consumerKey, $consumerSecret, $env);
@@ -67,7 +67,7 @@ class MpesaService
         if (curl_errno($curl)) {
             $error = curl_error($curl);
             curl_close($curl);
-            error_log("cURL Error in stk_push: " . $error);
+            // Provider connection failures are surfaced to WooCommerce without logging request data.
             // Return an error response in the expected format
             return json_encode(array(
                 'errorCode' => 'CURL_ERROR',
@@ -81,7 +81,7 @@ class MpesaService
         $result = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("Invalid JSON response from M-Pesa API for order #{$order_id}: " . json_last_error_msg());
+            // Do not log raw payment provider payloads or access token responses.
             return json_encode(array(
                 'errorCode' => 'INVALID_JSON',
                 'errorMessage' => 'Invalid response from M-Pesa API'
@@ -98,16 +98,13 @@ class MpesaService
             if ($order) {
                 $order->update_meta_data('_merchant_request_id', $merchantRequestID);
                 $order->update_meta_data('_checkout_request_id', $checkoutRequestID);
-                $order->add_order_note(sprintf(
-                    __('M-Pesa STK Push initiated. MerchantRequestID: %s', 'woocommerce'),
-                    $merchantRequestID
-                ));
+                $order->add_order_note(__('M-Pesa payment request submitted to the provider.', 'woocommerce'));
                 $order->save();
                 
-                error_log("M-Pesa STK Push successful for order #{$order_id}. MerchantRequestID: {$merchantRequestID}");
+
             }
         } else {
-            error_log("M-Pesa API response missing required fields for order #{$order_id}: " . $response);
+            // Do not log raw payment provider payloads or access token responses.
         }
 
         return $response;
@@ -132,7 +129,7 @@ class MpesaService
         if (curl_errno($curl)) {
             $error = curl_error($curl);
             curl_close($curl);
-            error_log("cURL Error in getAccessToken: " . $error);
+            // Provider connection failures are surfaced to WooCommerce without logging request data.
             throw new Exception("Failed to get access token: " . $error);
         }
         
@@ -141,7 +138,7 @@ class MpesaService
         $result = json_decode($response, true);
         
         if (!isset($result['access_token'])) {
-            error_log("Failed to get access token. Response: " . $response);
+            // Do not log raw payment provider payloads or access token responses.
             throw new Exception("Failed to get access token from M-Pesa API");
         }
         
@@ -177,7 +174,7 @@ class MpesaService
             'CheckoutRequestID' => $checkoutRequestID
         );
         
-        error_log("M-Pesa Query Request: " . json_encode($data));
+            // Do not log raw payment provider payloads or access token responses.
         
         // Select endpoint based on environment
         $url = ($env == 'sandbox') 
@@ -202,7 +199,7 @@ class MpesaService
         if (curl_errno($curl)) {
             $error = curl_error($curl);
             curl_close($curl);
-            error_log("cURL Error in query_transaction_status: " . $error);
+            // Provider connection failures are surfaced to WooCommerce without logging request data.
             return json_encode(array(
                 'errorCode' => 'CURL_ERROR',
                 'errorMessage' => $error
@@ -211,7 +208,7 @@ class MpesaService
         
         curl_close($curl);
         
-        error_log("M-Pesa Query Response: " . $response);
+            // Do not log raw payment provider payloads or access token responses.
         
         return $response;
     }
